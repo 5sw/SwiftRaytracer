@@ -8,10 +8,12 @@ typealias Point = vector_double3
 struct Ray {
     let origin: Point
     let direction: Vector
+    let length: Double
 
     init(from: Point, to: Point) {
         origin = from
         direction = normalize(to - from)
+        self.length = simd.length(to - from)
     }
 
     func at(_ distance: Double) -> Point {
@@ -94,7 +96,7 @@ let distance = length(lookAt - camera)
 let right = cross(up, forward)
 
 let sphere = Sphere(center: [0, 0, 0], radius: 2)
-let plane = Plane(point: [0, -0.2, 0], normal: up)
+let plane = Plane(point: [0, -5, 0], normal: up)
 
 let scene: [Object] = [
     sphere,
@@ -116,8 +118,8 @@ func intersect(ray: Ray) -> Intersection? {
     return result
 }
 
-let imageHeight = 240
-let imageWidth = 320
+let imageWidth = 2880
+let imageHeight = 1800
 
 let aspect = Double(imageHeight) / Double(imageWidth)
 let fieldOfView = 90 * .pi / 180.0
@@ -141,7 +143,7 @@ extension Color {
 }
 
 
-let light: Point = [0, 10, -5]
+let light: Point = [5, 10, -5]
 let ambient: Color = [1, 1, 1] * 0.1
 let diffuse: Color = [1, 1, 1] * 0.4
 let specular: Color = [1, 1, 1] * 0.8
@@ -161,18 +163,23 @@ let material = Material(
 )
 
 func shade(intersection: Intersection, material: Material) -> Color {
-    let l = normalize(light - intersection.point)
+    let ambientColor = material.ambient * ambient
+
+    let lightRay = Ray(from: intersection.point, to: light)
+    if let lightHit = intersect(ray: lightRay), lightHit.distance < lightRay.length {
+        return ambientColor
+    }
+
+    let l = lightRay.direction
     let r = 2 * dot(l, intersection.normal) * intersection.normal - l
     let v = normalize(camera - intersection.point)
 
-    return material.ambient * ambient
+    return ambientColor
         + material.diffuse * max(0, dot(l, intersection.normal)) * diffuse
         + material.specular * pow(max(0, dot(r, v)), material.shininess) * specular
 }
 
-
 DispatchQueue.concurrentPerform(iterations: imageHeight) { y in
-    //for y in 0..<imageHeight {
     let yScreen = height * (0.5 - Double(y) / Double(imageHeight))
 
     var offset = y * imageWidth
@@ -190,7 +197,6 @@ DispatchQueue.concurrentPerform(iterations: imageHeight) { y in
 
         offset += 1
     }
-
 }
 
 let data = UnsafeMutableRawPointer(pixels)
