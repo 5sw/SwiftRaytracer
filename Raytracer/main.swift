@@ -206,7 +206,18 @@ let context = CGContext(data: data, width: imageWidth, height: imageHeight, bits
 let image = context?.makeImage()
 
 let url = URL(fileURLWithPath: "/Users/sven/Desktop/test.png")
-let dest = CGImageDestinationCreateWithURL(url as CFURL, kUTTypePNG, 1, nil)!
-CGImageDestinationAddImage(dest, image!, nil)
-CGImageDestinationFinalize(dest)
 
+var success = false
+var error: NSError? = nil
+
+let coordinator = NSFileCoordinator(filePresenter: nil)
+coordinator.coordinate(writingItemAt: url, options: [], error: &error) { newUrl in
+    let dest = CGImageDestinationCreateWithURL(newUrl as CFURL, kUTTypePNG, 1, nil)!
+    CGImageDestinationAddImage(dest, image!, nil)
+    CGImageDestinationFinalize(dest)
+    success = true
+}
+
+if !success {
+    print("Error writing output file: ", error)
+}
