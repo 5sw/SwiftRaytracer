@@ -58,6 +58,8 @@ struct Material {
 
     let reflecting: Bool
     let reflectingPower: Color
+
+    let checkboard: Bool
 }
 
 protocol Object: class {
@@ -87,9 +89,11 @@ class Sphere: Object {
 
         guard discr >= 0 else { return nil }
 
-        let t = -b - sqrt(discr)
+        var t = -b - sqrt(discr)
 
         guard t >= 0 else { return nil }
+
+        t -= 0.001
 
         let p = ray.at(t)
         let normal = normalize(p - center)
@@ -104,7 +108,8 @@ class Sphere: Object {
             specular: [1, 0, 1],
             shininess: 40,
             reflecting: true,
-            reflectingPower: [1, 1, 1]
+            reflectingPower: [1, 1, 1],
+            checkboard: false
         )
     }
 }
@@ -122,8 +127,10 @@ class Plane: Object {
         let denom = dot(normal, ray.direction)
         guard denom != 0 else { return nil }
 
-        let t = dot(point - ray.origin, normal) / denom
+        var t = dot(point - ray.origin, normal) / denom
         guard t > 0 else { return nil }
+
+        t -= 0.001
 
         return Intersection(ray: ray, distance: t, normal: normal, object: self)
     }
@@ -131,11 +138,12 @@ class Plane: Object {
     var material: Material {
         return Material(
             ambient: [1, 1, 1] * 0.1,
-            diffuse: [1, 1, 1] * 0,
-            specular: [1, 1, 1] * 0,
+            diffuse: [1, 1, 1] * 1,
+            specular: [1, 1, 1] * 1,
             shininess: 100,
-            reflecting: true,
-            reflectingPower: [1, 1, 1] * 0.5
+            reflecting: false,
+            reflectingPower: [1, 1, 1] * 2,
+            checkboard: true
         )
     }
 }
@@ -148,11 +156,15 @@ let forward: Vector = normalize(lookAt - camera)
 let distance = length(lookAt - camera)
 let right = cross(up, forward)
 
-let sphere = Sphere(center: [0, 0, 0], radius: 2)
+let sphere = Sphere(center: [2, 2, 0], radius: 2)
+let sphere2 = Sphere(center: [4, -1, -1], radius: 1)
+let sphere3 = Sphere(center: [-6, 2, 0], radius: 4)
 let plane = Plane(point: [0, -5, 0], normal: up)
 
 let scene: [Object] = [
     sphere,
+    sphere2,
+    sphere3,
     plane
 ]
 
@@ -175,7 +187,7 @@ let imageWidth = 2880
 let imageHeight = 1800
 
 let aspect = Double(imageHeight) / Double(imageWidth)
-let fieldOfView = 90 * .pi / 180.0
+let fieldOfView = 75 * .pi / 180.0
 
 let width = 2 * distance * tan( fieldOfView / 2)
 let height = width * aspect
@@ -200,8 +212,31 @@ let ambient: Color = [1, 1, 1] * 0.1
 let diffuse: Color = [1, 1, 1] * 0.4
 let specular: Color = [1, 1, 1] * 0.8
 
-func shade(intersection: Intersection, material: Material, traceSecondary: (Ray) -> Color) -> Color {
-    let ambientColor = material.ambient * ambient
+func shade(intersection: Intersection, object: Object, material: Material, traceSecondary: (Ray) -> Color) -> Color {
+    var ambientColor = material.ambient * ambient
+
+    if material.checkboard {
+        let u = Int(floor(intersection.point.x / 10))
+        let v = Int(floor(intersection.point.z / 10))
+
+        let evenU = u % 2 == 0
+        let evenV = v % 2 == 0
+
+        if evenU == evenV {
+            ambientColor = [1, 0, 0] * ambient
+        } else {
+            ambientColor = [0, 0, 1] * ambient
+        }
+    }
+
+    let v = normalize(camera - intersection.point)
+
+    if material.reflecting {
+        let r = 2 * dot(v, intersection.normal) * intersection.normal - v
+        let reflectedRay = Ray(origin: intersection.point, direction: r)
+        let reflected = material.reflectingPower * traceSecondary(reflectedRay)
+        ambientColor += reflected
+    }
 
     let lightRay = Ray(from: intersection.point, to: light)
     if let lightHit = intersect(ray: lightRay), lightHit.distance < lightRay.length {
@@ -210,19 +245,10 @@ func shade(intersection: Intersection, material: Material, traceSecondary: (Ray)
 
     let l = lightRay.direction
     let r = 2 * dot(l, intersection.normal) * intersection.normal - l
-    let v = normalize(camera - intersection.point)
-
-    var reflected: Color = [0, 0, 0]
-    if material.reflecting {
-        let r = 2 * dot(v, intersection.normal) * intersection.normal - v
-        let reflectedRay = Ray(origin: intersection.point, direction: r)
-        reflected = material.reflectingPower * traceSecondary(reflectedRay)
-    }
 
     return ambientColor
         + material.diffuse * max(0, dot(l, intersection.normal)) * diffuse
         + material.specular * pow(max(0, dot(r, v)), material.shininess) * specular
-        + reflected
 }
 
 let background: Color = [0, 0, 0]
@@ -236,7 +262,7 @@ func trace(ray: Ray, depth: Int = 0) -> Color {
     firedRays += 1
     guard let intersection = intersect(ray: ray) else { return background }
 
-    return shade(intersection: intersection, material: intersection.object.material, traceSecondary: { trace(ray: $0, depth: depth + 1) })
+    return shade(intersection: intersection, object: intersection.object, material: intersection.object.material, traceSecondary: { trace(ray: $0, depth: depth + 1) })
 }
 
 let start = DispatchTime.now()
