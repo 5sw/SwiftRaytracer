@@ -16,6 +16,12 @@ struct Ray {
         self.length = simd.length(to - from)
     }
 
+    init(origin: Point, direction: Vector) {
+        self.origin = origin
+        self.direction = direction
+        self.length = .greatestFiniteMagnitude
+    }
+
     func at(_ distance: Double) -> Point {
         return origin + direction * distance
     }
@@ -93,12 +99,12 @@ class Sphere: Object {
 
     var material: Material {
         return Material(
-            ambient: [1, 0, 0],
+            ambient: [3, 0, 0],
             diffuse: [1, 0, 0],
             specular: [1, 0, 1],
             shininess: 40,
-            reflecting: false,
-            reflectingPower: [0, 0, 0]
+            reflecting: true,
+            reflectingPower: [1, 1, 1]
         )
     }
 }
@@ -124,9 +130,9 @@ class Plane: Object {
 
     var material: Material {
         return Material(
-            ambient: [1, 1, 1],
-            diffuse: [1, 1, 1],
-            specular: [1, 1, 1],
+            ambient: [1, 1, 1] * 0.1,
+            diffuse: [1, 1, 1] * 0,
+            specular: [1, 1, 1] * 0,
             shininess: 100,
             reflecting: true,
             reflectingPower: [1, 1, 1] * 0.5
@@ -194,7 +200,7 @@ let ambient: Color = [1, 1, 1] * 0.1
 let diffuse: Color = [1, 1, 1] * 0.4
 let specular: Color = [1, 1, 1] * 0.8
 
-func shade(intersection: Intersection, material: Material, depth: Int) -> Color {
+func shade(intersection: Intersection, material: Material, traceSecondary: (Ray) -> Color) -> Color {
     let ambientColor = material.ambient * ambient
 
     let lightRay = Ray(from: intersection.point, to: light)
@@ -206,9 +212,17 @@ func shade(intersection: Intersection, material: Material, depth: Int) -> Color 
     let r = 2 * dot(l, intersection.normal) * intersection.normal - l
     let v = normalize(camera - intersection.point)
 
+    var reflected: Color = [0, 0, 0]
+    if material.reflecting {
+        let r = 2 * dot(v, intersection.normal) * intersection.normal - v
+        let reflectedRay = Ray(origin: intersection.point, direction: r)
+        reflected = material.reflectingPower * traceSecondary(reflectedRay)
+    }
+
     return ambientColor
         + material.diffuse * max(0, dot(l, intersection.normal)) * diffuse
         + material.specular * pow(max(0, dot(r, v)), material.shininess) * specular
+        + reflected
 }
 
 let background: Color = [0, 0, 0]
@@ -222,7 +236,7 @@ func trace(ray: Ray, depth: Int = 0) -> Color {
     firedRays += 1
     guard let intersection = intersect(ray: ray) else { return background }
 
-    return shade(intersection: intersection, material: intersection.object.material, depth: depth)
+    return shade(intersection: intersection, material: intersection.object.material, traceSecondary: { trace(ray: $0, depth: depth + 1) })
 }
 
 
@@ -242,6 +256,8 @@ DispatchQueue.concurrentPerform(iterations: imageHeight) { y in
         offset += 1
     }
 }
+
+print("Fired", firedRays, "rays")
 
 let data = UnsafeMutableRawPointer(pixels)
 
