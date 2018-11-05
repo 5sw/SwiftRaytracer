@@ -239,7 +239,7 @@ func trace(ray: Ray, depth: Int = 0) -> Color {
     return shade(intersection: intersection, material: intersection.object.material, traceSecondary: { trace(ray: $0, depth: depth + 1) })
 }
 
-
+let start = DispatchTime.now()
 DispatchQueue.concurrentPerform(iterations: imageHeight) { y in
     let yScreen = height * (0.5 - Double(y) / Double(imageHeight))
 
@@ -256,8 +256,15 @@ DispatchQueue.concurrentPerform(iterations: imageHeight) { y in
         offset += 1
     }
 }
+let end = DispatchTime.now()
+let duration = Double(end.uptimeNanoseconds - start.uptimeNanoseconds) * 1e-9
+let pixelCount = imageWidth * imageHeight
 
+print("Time elapsed", duration, "s")
 print("Fired", firedRays, "rays")
+print("Time per pixel", duration / Double(pixelCount) * 1e6, "µs" )
+print("Time per ray", duration / Double(firedRays) * 1e6, "µs")
+print("Rays per pixel", Double(firedRays) / Double(pixelCount))
 
 let data = UnsafeMutableRawPointer(pixels)
 
