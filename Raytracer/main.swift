@@ -27,6 +27,8 @@ struct Ray {
     }
 }
 
+let offset = 0.000001
+
 struct Intersection {
     let point: Point
     let normal: Vector
@@ -34,14 +36,14 @@ struct Intersection {
     let object: Object
 
     init(ray: Ray, distance: Double, normal: Vector, object: Object) {
-        self.point = ray.at(distance)
+        self.point = ray.at(distance) + offset * normal
         self.normal = normal
         self.distance = distance
         self.object = object
     }
 
     init(point: Point, distance: Double, normal: Vector, object: Object) {
-        self.point = point
+        self.point = point + offset * normal
         self.distance = distance
         self.normal = normal
         self.object = object
@@ -89,11 +91,9 @@ class Sphere: Object {
 
         guard discr >= 0 else { return nil }
 
-        var t = -b - sqrt(discr)
+        let t = -b - sqrt(discr)
 
         guard t >= 0 else { return nil }
-
-        t -= 0.001
 
         let p = ray.at(t)
         let normal = normalize(p - center)
@@ -127,10 +127,8 @@ class Plane: Object {
         let denom = dot(normal, ray.direction)
         guard denom != 0 else { return nil }
 
-        var t = dot(point - ray.origin, normal) / denom
+        let t = dot(point - ray.origin, normal) / denom
         guard t > 0 else { return nil }
-
-        t -= 0.001
 
         return Intersection(ray: ray, distance: t, normal: normal, object: self)
     }
