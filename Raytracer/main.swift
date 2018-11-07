@@ -84,6 +84,18 @@ let sphereMaterial = Material(
     ior: 1
 )
 
+let lensMaterial = Material(
+    ambient: [1, 1, 1] * 0.1,
+    diffuse: [1, 1, 1] * 0.1,
+    specular: [1, 1, 1] * 0.1,
+    shininess: 100,
+    reflecting: false,
+    reflectingPower: [1, 1, 1],
+    checkboard: false,
+    refracts: true,
+    ior: 1.5
+)
+
 let planeMaterial = Material(
     ambient: [1, 1, 1] * 0.1,
     diffuse: [1, 1, 1] * 1,
@@ -166,11 +178,13 @@ let sphere = Sphere(center: [2, 2, 0], radius: 2, material: sphereMaterial)
 let sphere2 = Sphere(center: [4, -1, -1], radius: 1, material: sphereMaterial)
 let sphere3 = Sphere(center: [-6, 2, 0], radius: 4, material: sphereMaterial)
 let plane = Plane(point: [0, -5, 0], normal: up, material: planeMaterial)
+let lens = Sphere(center: [0, 1.5, -4], radius: 1.2, material: lensMaterial)
 
 let scene: [Object] = [
     sphere,
     sphere2,
     sphere3,
+    lens,
     plane
 ]
 
