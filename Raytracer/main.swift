@@ -62,6 +62,9 @@ struct Material {
     let reflectingPower: Color
 
     let checkboard: Bool
+
+    let refracts: Bool
+    let ior: Double
 }
 
 protocol Object: class {
@@ -69,13 +72,39 @@ protocol Object: class {
     var material: Material { get }
 }
 
+let sphereMaterial = Material(
+    ambient: [3, 0, 0],
+    diffuse: [1, 0, 0],
+    specular: [1, 0, 1],
+    shininess: 40,
+    reflecting: true,
+    reflectingPower: [1, 1, 1],
+    checkboard: false,
+    refracts: false,
+    ior: 1
+)
+
+let planeMaterial = Material(
+    ambient: [1, 1, 1] * 0.1,
+    diffuse: [1, 1, 1] * 1,
+    specular: [1, 1, 1] * 1,
+    shininess: 100,
+    reflecting: false,
+    reflectingPower: [1, 1, 1] * 2,
+    checkboard: true,
+    refracts: false,
+    ior: 1
+)
+
 class Sphere: Object {
     let center: Point
     let radius: Double
+    let material: Material
 
-    init(center: Point, radius: Double) {
+    init(center: Point, radius: Double, material: Material) {
         self.center = center
         self.radius = radius
+        self.material = material
     }
 
     func intersect(ray: Ray) -> Intersection? {
@@ -100,27 +129,17 @@ class Sphere: Object {
 
         return Intersection(point: p, distance: t, normal: normal, object: self)
     }
-
-    var material: Material {
-        return Material(
-            ambient: [3, 0, 0],
-            diffuse: [1, 0, 0],
-            specular: [1, 0, 1],
-            shininess: 40,
-            reflecting: true,
-            reflectingPower: [1, 1, 1],
-            checkboard: false
-        )
-    }
 }
 
 class Plane: Object {
     let point: Point
     let normal: Vector
+    let material: Material
 
-    init(point: Point, normal: Vector) {
+    init(point: Point, normal: Vector, material: Material) {
         self.point = point
         self.normal = normal
+        self.material = material
     }
 
     func intersect(ray: Ray) -> Intersection? {
@@ -133,17 +152,6 @@ class Plane: Object {
         return Intersection(ray: ray, distance: t, normal: normal, object: self)
     }
 
-    var material: Material {
-        return Material(
-            ambient: [1, 1, 1] * 0.1,
-            diffuse: [1, 1, 1] * 1,
-            specular: [1, 1, 1] * 1,
-            shininess: 100,
-            reflecting: false,
-            reflectingPower: [1, 1, 1] * 2,
-            checkboard: true
-        )
-    }
 }
 
 
@@ -154,10 +162,10 @@ let forward: Vector = normalize(lookAt - camera)
 let distance = length(lookAt - camera)
 let right = cross(up, forward)
 
-let sphere = Sphere(center: [2, 2, 0], radius: 2)
-let sphere2 = Sphere(center: [4, -1, -1], radius: 1)
-let sphere3 = Sphere(center: [-6, 2, 0], radius: 4)
-let plane = Plane(point: [0, -5, 0], normal: up)
+let sphere = Sphere(center: [2, 2, 0], radius: 2, material: sphereMaterial)
+let sphere2 = Sphere(center: [4, -1, -1], radius: 1, material: sphereMaterial)
+let sphere3 = Sphere(center: [-6, 2, 0], radius: 4, material: sphereMaterial)
+let plane = Plane(point: [0, -5, 0], normal: up, material: planeMaterial)
 
 let scene: [Object] = [
     sphere,
@@ -181,8 +189,8 @@ func intersect(ray: Ray) -> Intersection? {
     return result
 }
 
-let imageWidth = 2880
-let imageHeight = 1800
+let imageWidth = 800
+let imageHeight = 600
 
 let aspect = Double(imageHeight) / Double(imageWidth)
 let fieldOfView = 75 * .pi / 180.0
@@ -209,6 +217,8 @@ let light: Point = [5, 10, -5]
 let ambient: Color = [1, 1, 1] * 0.1
 let diffuse: Color = [1, 1, 1] * 0.4
 let specular: Color = [1, 1, 1] * 0.8
+let ambientIoR: Double = 1 // Air
+
 
 func shade(intersection: Intersection, object: Object, material: Material, traceSecondary: (Ray) -> Color) -> Color {
     var ambientColor = material.ambient * ambient
