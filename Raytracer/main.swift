@@ -263,19 +263,29 @@ func trace(ray: Ray, depth: Int = 0) -> Color {
     return shade(intersection: intersection, object: intersection.object, material: intersection.object.material, traceSecondary: { trace(ray: $0, depth: depth + 1) })
 }
 
+let supersample = 4
+
 let start = DispatchTime.now()
 DispatchQueue.concurrentPerform(iterations: imageHeight) { y in
-    let yScreen = height * (0.5 - Double(y) / Double(imageHeight))
 
     var offset = y * imageWidth
 
     for x in 0..<imageWidth {
-        let xScreen = width * (Double(x) / Double(imageWidth) - 0.5)
 
-        let screenPoint = camera + distance * forward + xScreen * right + yScreen * up
+        var color: Color = [0, 0, 0]
+        for _ in 0..<supersample {
+            let offsetY = Double.random(in: -0.5..<0.5)
+            let offsetX = Double.random(in: -0.5..<0.5)
+            let yScreen = height * (0.5 - (Double(y) + offsetY) / Double(imageHeight))
+            let xScreen = width * ((Double(x) + offsetX) / Double(imageWidth) - 0.5)
 
-        let ray = Ray(from: camera, to: screenPoint)
-        pixels[offset] = trace(ray: ray).pixelValue
+            let screenPoint = camera + distance * forward + xScreen * right + yScreen * up
+            let ray = Ray(from: camera, to: screenPoint)
+
+            color += trace(ray: ray)
+        }
+
+        pixels[offset] = (color / Double(supersample)).pixelValue
 
         offset += 1
     }
