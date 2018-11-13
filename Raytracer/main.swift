@@ -234,7 +234,7 @@ let specular: Color = [1, 1, 1] * 0.8
 let ambientIoR: Double = 1 // Air
 
 
-func shade(intersection: Intersection, object: Object, material: Material, traceSecondary: (Ray) -> Color) -> Color {
+func shade(ray: Ray, intersection: Intersection, object: Object, material: Material, traceSecondary: (Ray) -> Color) -> Color {
     var ambientColor = material.ambient * ambient
 
     if material.checkboard {
@@ -251,7 +251,7 @@ func shade(intersection: Intersection, object: Object, material: Material, trace
         }
     }
 
-    let v = normalize(camera - intersection.point)
+    let v = -ray.direction
 
     if material.reflecting {
         let r = 2 * dot(v, intersection.normal) * intersection.normal - v
@@ -284,7 +284,7 @@ func trace(ray: Ray, depth: Int = 0) -> Color {
     firedRays += 1
     guard let intersection = intersect(ray: ray) else { return background }
 
-    return shade(intersection: intersection, object: intersection.object, material: intersection.object.material, traceSecondary: { trace(ray: $0, depth: depth + 1) })
+    return shade(ray: ray, intersection: intersection, object: intersection.object, material: intersection.object.material, traceSecondary: { trace(ray: $0, depth: depth + 1) })
 }
 
 let supersample = 4
@@ -343,6 +343,6 @@ coordinator.coordinate(writingItemAt: url, options: [], error: &error) { newUrl 
     success = true
 }
 
-if !success {
+if !success, let error = error {
     print("Error writing output file: ", error)
 }
