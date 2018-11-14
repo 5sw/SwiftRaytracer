@@ -120,26 +120,22 @@ class Sphere: Object {
     }
 
     func intersect(ray: Ray) -> Intersection? {
-        let m = ray.origin - center
-        let b = dot(m, ray.direction)
-        let c = dot(m, m) - radius * radius
+        let v = center - ray.origin
+        let pc = dot(v, ray.direction)
 
-        guard c <= 0 || b <= 0 else {
-            return nil
-        }
+        guard pc >= 0 else { return nil }
 
-        let discr = b * b - c
+        let dist2 = radius * radius - length_squared(v) + pc * pc
+        guard dist2 >= 0 else { return nil }
 
-        guard discr >= 0 else { return nil }
+        let dist = sqrt(dist2)
 
-        let t = -b - sqrt(discr)
+        let t = dist <= pc ? pc - dist : pc + dist
 
-        guard t >= 0 else { return nil }
+        let point = ray.at(t)
+        let normal = (point - center) / radius
 
-        let p = ray.at(t)
-        let normal = normalize(p - center)
-
-        return Intersection(point: p, distance: t, normal: normal, object: self)
+        return Intersection(point: point, distance: t, normal: normal, object: self)
     }
 }
 
