@@ -5,19 +5,21 @@ import Foundation
 typealias Vector = vector_double3
 typealias Point = vector_double3
 
+let offset = 0.000001
+
 struct Ray {
     let origin: Point
     let direction: Vector
     let length: Double
 
     init(from: Point, to: Point) {
-        origin = from
         direction = normalize(to - from)
+        origin = from + offset * direction
         self.length = simd.length(to - from)
     }
 
     init(origin: Point, direction: Vector) {
-        self.origin = origin
+        self.origin = origin + offset * direction
         self.direction = direction
         self.length = .greatestFiniteMagnitude
     }
@@ -27,8 +29,6 @@ struct Ray {
     }
 }
 
-let offset = 0.000001
-
 struct Intersection {
     let point: Point
     let normal: Vector
@@ -36,14 +36,14 @@ struct Intersection {
     let object: Object
 
     init(ray: Ray, distance: Double, normal: Vector, object: Object) {
-        self.point = ray.at(distance) + offset * normal
+        self.point = ray.at(distance)
         self.normal = normal
         self.distance = distance
         self.object = object
     }
 
     init(point: Point, distance: Double, normal: Vector, object: Object) {
-        self.point = point + offset * normal
+        self.point = point
         self.distance = distance
         self.normal = normal
         self.object = object
