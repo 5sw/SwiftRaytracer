@@ -229,8 +229,29 @@ let diffuse: Color = [1, 1, 1] * 0.4
 let specular: Color = [1, 1, 1] * 0.8
 let ambientIoR: Double = 1 // Air
 
+extension Ray {
+    func refractedRay(intersection: Intersection, fromIoR: Double, toIoR: Double) -> Ray? {
+        let n = fromIoR / toIoR
+        let incident = direction
+        let cosI = dot(intersection.normal, incident)
+        let sinT2 = n * n * (1 - cosI * cosI)
+        guard sinT2 <= 1 else { return nil }
+        let cosT = sqrt(1 - sinT2)
+        return Ray(origin: intersection.point, direction: normalize(n * incident + (n * cosI - cosT) * intersection.normal))
+    }
+}
 
-func shade(ray: Ray, intersection: Intersection, object: Object, material: Material, traceSecondary: (Ray) -> Color) -> Color {
+func shade(ray: Ray, intersection: Intersection, object: Object, material: Material, currentIoR: Double, previousIoR: Double, traceSecondary: (Ray, Double) -> Color) -> Color {
+
+    if material.refracts, dot(ray.direction, intersection.normal) >= 0 {
+        if let refractedRay = ray.refractedRay(intersection: intersection, fromIoR: currentIoR, toIoR: previousIoR) {
+        return traceSecondary(refractedRay, previousIoR)
+        }
+
+        // TODO: Handle total interal reflection here
+        return [0, 1, 1]
+    }
+
     var ambientColor = material.ambient * ambient
 
     if material.checkboard {
@@ -252,8 +273,13 @@ func shade(ray: Ray, intersection: Intersection, object: Object, material: Mater
     if material.reflecting {
         let r = 2 * dot(v, intersection.normal) * intersection.normal - v
         let reflectedRay = Ray(origin: intersection.point, direction: r)
-        let reflected = material.reflectingPower * traceSecondary(reflectedRay)
+        let reflected = material.reflectingPower * traceSecondary(reflectedRay, currentIoR)
         ambientColor += reflected
+    }
+
+    if material.refracts, let refractedRay = ray.refractedRay(intersection: intersection, fromIoR: currentIoR, toIoR: material.ior) {
+
+        ambientColor += traceSecondary(refractedRay, material.ior)
     }
 
     let lightRay = Ray(from: intersection.point, to: light)
@@ -274,13 +300,13 @@ let maxDepth = 10
 
 var firedRays = 0
 
-func trace(ray: Ray, depth: Int = 0) -> Color {
-    guard depth < maxDepth else { return background }
+func trace(ray: Ray, currentIoR: Double = ambientIoR, previousIoR: Double = ambientIoR, depth: Int = 0) -> Color {
+    guard depth < maxDepth else { return [1, 1, 0] }
 
     firedRays += 1
     guard let intersection = intersect(ray: ray) else { return background }
 
-    return shade(ray: ray, intersection: intersection, object: intersection.object, material: intersection.object.material, traceSecondary: { trace(ray: $0, depth: depth + 1) })
+    return shade(ray: ray, intersection: intersection, object: intersection.object, material: intersection.object.material, currentIoR: currentIoR, previousIoR: previousIoR, traceSecondary: { trace(ray: $0, currentIoR: $1, previousIoR: currentIoR, depth: depth + 1) })
 }
 
 let supersample = 4
